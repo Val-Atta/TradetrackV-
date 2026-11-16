@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#059669" />
+  <title>TradetrackV — Inventory & Family-Draw Tracker</title>
+  <link rel="manifest" href="/manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .tab-active { color: #059669; border-top: 3px solid #059669; font-weight: 700; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 pb-24 max-w-md mx-auto min-h-screen shadow-xl relative">
+
+  <header class="bg-emerald-700 text-white px-4 py-3.5 sticky top-0 z-30 shadow-md">
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="bg-white text-emerald-800 font-extrabold text-xs px-2 py-0.5 rounded">TV</span>
+          <h1 class="font-bold text-lg tracking-tight">TradetrackV</h1>
+        </div>
+        <p id="offlineBadge" class="text-[11px] text-emerald-100 mt-0.5">● Offline-Ready Storage Active</p>
+      </div>
+      <button onclick="toggleRoleModal()" id="roleBadgeBtn"
+        class="bg-amber-400 text-slate-900 font-bold text-xs px-3 py-1.5 rounded-full shadow flex items-center gap-1 active:scale-95 transition">
+        <span id="roleIcon">👩‍💼</span>
+        <span id="roleLabel">Salesgirl Mode</span>
+      </button>
+    </div>
+  </header>
+
+  <div id="pendingBanner" class="hidden bg-amber-50 border-b border-amber-300 px-4 py-2.5 flex items-center justify-between">
+    <div class="text-xs text-amber-900">
+      <strong id="pendingCount">0</strong> pending Family Draw request(s) from staff
+    </div>
+    <button onclick="switchTab('logs')" class="text-xs font-bold bg-amber-500 text-white px-2.5 py-1 rounded">Review</button>
+  </div>
+
+  <main class="p-4 space-y-4">
+    <section id="view-pos" class="space-y-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Record Item Movement</h2>
+          <button onclick="toggleScanner()" id="scanBtn"
+            class="bg-slate-900 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 active:scale-95">
+            📷 <span id="scanBtnText">Scan Barcode</span>
+          </button>
+        </div>
+
+        <div id="scannerWrapper" class="hidden rounded-xl overflow-hidden border border-slate-300 bg-black">
+          <div id="reader" class="w-full"></div>
+          <button onclick="stopScanner()" class="w-full py-2 bg-rose-600 text-white text-xs font-bold">Close Camera</button>
+        </div>
+
+        <div class="relative">
+          <input type="text" id="posSearch" oninput="filterPosItems()" placeholder="Type product name or barcode..."
+            class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+
+        <div id="posProductList" class="max-h-60 overflow-y-auto divide-y divide-slate-100"></div>
+      </div>
+
+      <div id="actionPanel" class="hidden bg-white rounded-2xl p-4 shadow-md border-2 border-emerald-500 space-y-3">
+        <div class="flex justify-between items-start">
+          <div>
+            <span id="selBarcode" class="text-[11px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded"></span>
+            <h3 id="selName" class="font-bold text-base text-slate-900 mt-1"></h3>
+            <p class="text-xs text-slate-500">In Stock: <strong id="selStock" class="text-slate-800"></strong> | Price: <strong id="selPrice" class="text-emerald-700"></strong></p>
+          </div>
+          <button onclick="clearSelection()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label class="text-xs font-bold text-slate-600">Quantity:</label>
+          <div class="flex items-center border border-slate-300 rounded-lg overflow-hidden">
+            <button onclick="adjustQty(-1)" class="px-3 py-1.5 bg-slate-100 font-bold text-base">-</button>
+            <input type="number" id="selQty" value="1" min="1" class="w-14 text-center font-bold text-sm focus:outline-none" />
+            <button onclick="adjustQty(1)" class="px-3 py-1.5 bg-slate-100 font-bold text-base">+</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5 pt-1">
+          <button onclick="recordMovement('SALE')"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-3 rounded-xl text-xs shadow flex flex-col items-center justify-center active:scale-95 transition">
+            <span class="text-sm">💵 Customer Sale</span>
+            <span class="text-[10px] font-normal opacity-90">Adds Cash Revenue</span>
+          </button>
+
+          <button onclick="recordMovement('FAMILY_DRAW')"
+            class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 px-3 rounded-xl text-xs shadow flex flex-col items-center justify-center active:scale-95 transition">
+            <span class="text-sm">🏠 Family / Owner Use</span>
+            <span id="familyBtnSub" class="text-[10px] font-normal opacity-90">Logs Draw (₦0 Sale)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-[11px] font-semibold text-slate-500 uppercase">Today's Sales</p>
+          <p id="todaySalesVal" class="text-lg font-extrabold text-emerald-700 mt-0.5">₦0</p>
+        </div>
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-[11px] font-semibold text-slate-500 uppercase">Family Draws (Cost)</p>
+          <p id="todayFamilyVal" class="text-lg font-extrabold text-amber-600 mt-0.5">₦0</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-stock" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-slate-800 text-sm uppercase">Shop Stock Ledger</h2>
+          <span id="stockLockNotice" class="text-[11px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">🔒 Owner PIN needed to add/edit</span>
+        </div>
+
+        <form id="addStockForm" onsubmit="saveProduct(event)" class="hidden space-y-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <p class="text-xs font-bold text-emerald-800">+ Add New Product or Restock</p>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="text" id="prodBarcode" placeholder="Barcode (optional)" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
+            <input type="text" id="prodName" required placeholder="Item Name *" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <input type="number" id="prodCost" required min="1" placeholder="Cost Price (₦)*" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
+            <input type="number" id="prodSell" required min="1" placeholder="Sell Price (₦)*" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
+            <input type="number" id="prodQty" required min="1" placeholder="Qty *" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
+          </div>
+          <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-2 rounded-lg text-xs shadow">Save to Inventory</button>
+        </form>
+
+        <div id="inventoryTable" class="divide-y divide-slate-100"></div>
+      </div>
+    </section>
+
+    <section id="view-logs" class="hidden space-y-4">
+      <div id="ownerProfitCard" class="hidden bg-slate-900 text-white rounded-2xl p-4 shadow-md space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-400">True Business Profit Engine</h2>
+          <button onclick="exportWhatsApp()" class="bg-emerald-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">📲 WhatsApp Report</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-800 p-2.5 rounded-xl">
+            <span class="text-slate-400 block">Cash/POS Revenue</span>
+            <strong id="repRevenue" class="text-base text-white">₦0</strong>
+          </div>
+          <div class="bg-slate-800 p-2.5 rounded-xl">
+            <span class="text-slate-400 block">Cash Profit (Margin)</span>
+            <strong id="repCashProfit" class="text-base text-emerald-400">₦0</strong>
+          </div>
+          <div class="bg-slate-800 p-2.5 rounded-xl">
+            <span class="text-slate-400 block">Family Draws (At Cost)</span>
+            <strong id="repFamilyDraw" class="text-base text-amber-400">₦0</strong>
+          </div>
+          <div class="bg-emerald-950 border border-emerald-700 p-2.5 rounded-xl">
+            <span class="text-emerald-300 block">True Combined Value</span>
+            <strong id="repTrueProfit" class="text-base text-emerald-300">₦0</strong>
+          </div>
+        </div>
+        <p class="text-[11px] text-slate-300 leading-relaxed">
+          * <strong>True Combined Value</strong> = Cash Profit + Goods consumed by your household (at cost), preventing false theft alarms and showing real shop performance.
+        </p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-slate-800 text-sm uppercase">Tamper-Evident Audit Log</h2>
+          <button onclick="exportCSV()" class="text-xs text-emerald-700 font-bold underline">Download CSV</button>
+        </div>
+        <div id="auditLogList" class="space-y-2.5 max-h-96 overflow-y-auto"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 grid grid-cols-3 text-center z-30 shadow-lg">
+    <button onclick="switchTab('pos')" id="nav-pos" class="py-2.5 text-xs tab-active flex flex-col items-center gap-0.5">
+      <span class="text-base">🛒</span>
+      <span>Record Sale</span>
+    </button>
+    <button onclick="switchTab('stock')" id="nav-stock" class="py-2.5 text-xs text-slate-500 flex flex-col items-center gap-0.5">
+      <span class="text-base">📦</span>
+      <span>Stock</span>
+    </button>
+    <button onclick="switchTab('logs')" id="nav-logs" class="py-2.5 text-xs text-slate-500 flex flex-col items-center gap-0.5">
+      <span class="text-base">📊</span>
+      <span>Profit & Logs</span>
+    </button>
+  </nav>
+
+  <div id="pinModal" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl">
+      <h3 class="font-bold text-base text-slate-900">Switch Access Role</h3>
+      <p class="text-xs text-slate-600">Enter <strong>Owner PIN</strong> to unlock profit reports, stock editing, and direct Family Draw approvals. <em>(Demo PIN: <strong>1234</strong>)</em></p>
+      <input type="password" id="pinInput" maxlength="4" inputmode="numeric" placeholder="••••"
+        class="w-full text-center tracking-[0.6em] font-bold text-xl border border-slate-300 rounded-xl py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+      <p id="pinError" class="hidden text-xs text-rose-600 font-semibold text-center">Incorrect PIN. Try 1234.</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="closePinModal()" class="py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-600">Cancel</button>
+        <button onclick="verifyOwnerPin()" class="py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Unlock Owner</button>
+      </div>
+      <div class="pt-2 border-t text-center">
+        <button onclick="changeOwnerPinPrompt()" class="text-[11px] text-slate-500 underline">Change Owner PIN</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_PRODUCTS = [
+      { id: 'P1', barcode: '615110001', name: 'Peak Evaporated Milk (Tin)', cost: 650, sell: 800, qty: 24 },
+      { id: 'P2', barcode: '615110002', name: 'Golden Penny Semovita 2kg', cost: 2400, sell: 2800, qty: 15 },
+      { id: 'P3', barcode: '615110003', name: 'Indomie Chicken Carton (40pcs)', cost: 9200, sell: 10500, qty: 8 },
+      { id: 'P4', barcode: '615110004', name: 'Devon Kings Cooking Oil 1L', cost: 2100, sell: 2500, qty: 12 },
+      { id: 'P5', barcode: '615110005', name: 'Milo Refill Sachet 400g', cost: 2700, sell: 3200, qty: 10 }
+    ];
+
+    let state = {
+      role: 'SALESGIRL',
+      ownerPin: localStorage.getItem('ttv_pin') || '1234',
+      products: JSON.parse(localStorage.getItem('ttv_products')) || DEFAULT_PRODUCTS,
+      logs: JSON.parse(localStorage.getItem('ttv_logs')) || [],
+      selectedProductId: null,
+      scanner: null
+    };
+
+    function saveState() {
+      localStorage.setItem('ttv_products', JSON.stringify(state.products));
+      localStorage.setItem('ttv_logs', JSON.stringify(state.logs));
+      localStorage.setItem('ttv_pin', state.ownerPin);
+    }
+
+    function formatNaira(num) {
+      return '₦' + Number(num || 0).toLocaleString('en-NG');
+    }
+
+    function toggleRoleModal() {
+      if (state.role === 'OWNER') {
+        state.role = 'SALESGIRL';
+        updateUI();
+        alert('Switched to Salesgirl Mode. Cost prices, profit summaries, and stock editing are now locked.');
+      } else {
+        document.getElementById('pinInput').value = '';
+        document.getElementById('pinError').classList.add('hidden');
+        document.getElementById('pinModal').classList.remove('hidden');
+        document.getElementById('pinInput').focus();
+      }
+    }
+
+    function closePinModal() {
+      document.getElementById('pinModal').classList.add('hidden');
+    }
+
+    function verifyOwnerPin() {
+      const entered = document.getElementById('pinInput').value.trim();
+      if (entered === state.ownerPin) {
+        state.role = 'OWNER';
+        closePinModal();
+        updateUI();
+      } else {
+        document.getElementById('pinError').classList.remove('hidden');
+      }
+    }
+
+    function changeOwnerPinPrompt() {
+      const current = prompt('Enter current Owner PIN:');
+      if (current !== state.ownerPin) return alert('Current PIN incorrect.');
+      const next = prompt('Enter new 4-digit Owner PIN:');
+      if (next && /^\d{4}$/.test(next)) {
+        state.ownerPin = next;
+        saveState();
+        alert('Owner PIN updated successfully!');
+      } else {
+        alert('PIN must be exactly 4 digits.');
+      }
+    }
+
+    function switchTab(tab) {
+      ['pos', 'stock', 'logs'].forEach(t => {
+        document.getElementById('view-' + t).classList.add('hidden');
+        document.getElementById('nav-' + t).classList.remove('tab-active');
+        document.getElementById('nav-' + t).classList.add('text-slate-500');
+      });
+      document.getElementById('view-' + tab).classList.remove('hidden');
+      document.getElementById('nav-' + tab).classList.add('tab-active');
+      document.getElementById('nav-' + tab).classList.remove('text-slate-500');
+      if (tab !== 'pos') stopScanner();
+      updateUI();
+    }
+
+    function filterPosItems() {
+      const q = document.getElementById('posSearch').value.toLowerCase().trim();
+      const container = document.getElementById('posProductList');
+      const matches = state.products.filter(p =>
+        p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q))
+      );
+
+      if (matches.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No matching product found.</p>`;
+        return;
+      }
+
+      container.innerHTML = matches.map(p => `
+        <button onclick="selectProduct('${p.id}')" class="w-full text-left py-2.5 px-2 hover:bg-emerald-50 flex items-center justify-between transition">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">${p.name}</p>
+            <p class="text-[11px] text-slate-500">Stock: <strong class="${p.qty <= 3 ? 'text-rose-600' : 'text-slate-700'}">${p.qty}</strong> • Code: ${p.barcode || 'N/A'}</p>
+          </div>
+          <span class="font-bold text-sm text-emerald-700">${formatNaira(p.sell)}</span>
+        </button>
+      `).join('');
+    }
+
+    function selectProduct(id) {
+      const prod = state.products.find(p => p.id === id);
+      if (!prod) return;
+      state.selectedProductId = id;
+      document.getElementById('selBarcode').textContent = prod.barcode || 'NO BARCODE';
+      document.getElementById('selName').textContent = prod.name;
+      document.getElementById('selStock').textContent = prod.qty;
+      document.getElementById('selPrice').textContent = formatNaira(prod.sell);
+      document.getElementById('selQty').value = 1;
+      document.getElementById('actionPanel').classList.remove('hidden');
+    }
+
+    function clearSelection() {
+      state.selectedProductId = null;
+      document.getElementById('actionPanel').classList.add('hidden');
+    }
+
+    function adjustQty(delta) {
+      const input = document.getElementById('selQty');
+      const next = Math.max(1, (parseInt(input.value) || 1) + delta);
+      input.value = next;
+    }
+
+    function recordMovement(type) {
+      const prod = state.products.find(p => p.id === state.selectedProductId);
+      if (!prod) return;
+      const qty = parseInt(document.getElementById('selQty').value) || 1;
+
+      if (qty > prod.qty) {
+        return alert(`Insufficient stock! Only ${prod.qty} unit(s) of ${prod.name} available.`);
+      }
+
+      prod.qty -= qty;
+
+      const isOwner = state.role === 'OWNER';
+      const status = (type === 'FAMILY_DRAW' && !isOwner) ? 'PENDING_APPROVAL' : 'APPROVED';
+
+      const entry = {
+        id: 'LOG-' + Date.now(),
+        timestamp: new Date().toLocaleString('en-NG', { dateStyle: 'short', timeStyle: 'short' }),
+        type: type,
+        status: status,
+        recordedBy: state.role,
+        productName: prod.name,
+        qty: qty,
+        revenue: type === 'SALE' ? prod.sell * qty : 0,
+        costValue: prod.cost * qty,
+        profit: type === 'SALE' ? (prod.sell - prod.cost) * qty : 0
+      };
+
+      state.logs.unshift(entry);
+      saveState();
+      clearSelection();
+      document.getElementById('posSearch').value = '';
+      updateUI();
+
+      if (status === 'PENDING_APPROVAL') {
+        alert(`Logged ${qty}x ${prod.name} as Family Draw (Pending Owner Approval). Stock deducted.`);
+      }
+    }
+
+    function approvePendingDraw(logId, approve) {
+      if (state.role !== 'OWNER') return;
+      const idx = state.logs.findIndex(l => l.id === logId);
+      if (idx === -1) return;
+      const log = state.logs[idx];
+
+      if (approve) {
+        log.status = 'APPROVED';
+      } else {
+        log.status = 'REJECTED_SHORTAGE';
+        const prod = state.products.find(p => p.name === log.productName);
+        if (prod) prod.qty += log.qty;
+      }
+      saveState();
+      updateUI();
+    }
+
+    function toggleScanner() {
+      const wrapper = document.getElementById('scannerWrapper');
+      if (!wrapper.classList.contains('hidden')) {
+        return stopScanner();
+      }
+      wrapper.classList.remove('hidden');
+      state.scanner = new Html5Qrcode("reader");
+      state.scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 220, height: 120 } },
+        (decodedText) => {
+          document.getElementById('posSearch').value = decodedText;
+          filterPosItems();
+          const exact = state.products.find(p => p.barcode === decodedText);
+          if (exact) selectProduct(exact.id);
+          stopScanner();
+        },
+        () => {}
+      ).catch(err => {
+        alert("Camera access unavailable or denied. You can still type product names or codes manually.");
+        stopScanner();
+      });
+    }
+
+    function stopScanner() {
+      const wrapper = document.getElementById('scannerWrapper');
+      wrapper.classList.add('hidden');
+      if (state.scanner) {
+        state.scanner.stop().catch(() => {});
+        state.scanner = null;
+      }
+    }
+
+    function saveProduct(e) {
+      e.preventDefault();
+      if (state.role !== 'OWNER') return;
+      const barcode = document.getElementById('prodBarcode').value.trim();
+      const name = document.getElementById('prodName').value.trim();
+      const cost = parseFloat(document.getElementById('prodCost').value);
+      const sell = parseFloat(document.getElementById('prodSell').value);
+      const qty = parseInt(document.getElementById('prodQty').value);
+
+      const existing = state.products.find(p => p.name.toLowerCase() === name.toLowerCase() || (barcode && p.barcode === barcode));
+      if (existing) {
+        existing.cost = cost;
+        existing.sell = sell;
+        existing.qty += qty;
+      } else {
+        state.products.unshift({
+          id: 'P' + Date.now(),
+          barcode: barcode || String(Math.floor(100000000 + Math.random() * 900000000)),
+          name, cost, sell, qty
+        });
+      }
+      e.target.reset();
+      saveState();
+      updateUI();
+    }
+
+    function exportWhatsApp() {
+      const totalSales = state.logs.filter(l => l.type === 'SALE').reduce((s, l) => s + l.revenue, 0);
+      const totalFamily = state.logs.filter(l => l.type === 'FAMILY_DRAW' && l.status === 'APPROVED').reduce((s, l) => s + l.costValue, 0);
+      const cashProfit = state.logs.filter(l => l.type === 'SALE').reduce((s, l) => s + l.profit, 0);
+      const msg = `*TradetrackV Daily Shop Summary*%0A` +
+        `• Cash/POS Sales: ${formatNaira(totalSales)}%0A` +
+        `• Cash Profit: ${formatNaira(cashProfit)}%0A` +
+        `• Family/Owner Draws (Cost): ${formatNaira(totalFamily)}%0A` +
+        `• True Combined Value: ${formatNaira(cashProfit + totalFamily)}%0A` +
+        `• Total Transactions: ${state.logs.length}`;
+      window.open(`https://wa.me/?text=${msg}`, '_blank');
+    }
+
+    function exportCSV() {
+      const headers = ['Timestamp,Type,Status,RecordedBy,Product,Qty,Revenue,CostValue,Profit'];
+      const rows = state.logs.map(l =>
+        `"${l.timestamp}",${l.type},${l.status},${l.recordedBy},"${l.productName}",${l.qty},${l.revenue},${l.costValue},${l.profit}`
+      );
+      const blob = new Blob([headers.concat(rows).join('\n')], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tradetrackv_audit_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function updateUI() {
+      const isOwner = state.role === 'OWNER';
+
+      const roleBtn = document.getElementById('roleBadgeBtn');
+      document.getElementById('roleIcon').textContent = isOwner ? '👑' : '👩‍💼';
+      document.getElementById('roleLabel').textContent = isOwner ? 'Owner Mode' : 'Salesgirl Mode';
+      roleBtn.className = isOwner
+        ? 'bg-emerald-950 text-emerald-300 border border-emerald-400 font-bold text-xs px-3 py-1.5 rounded-full shadow flex items-center gap-1 active:scale-95 transition'
+        : 'bg-amber-400 text-slate-900 font-bold text-xs px-3 py-1.5 rounded-full shadow flex items-center gap-1 active:scale-95 transition';
+
+      document.getElementById('familyBtnSub').textContent = isOwner ? 'Direct Owner Draw' : 'Requires Owner Approval';
+
+      const pending = state.logs.filter(l => l.status === 'PENDING_APPROVAL');
+      const banner = document.getElementById('pendingBanner');
+      if (isOwner && pending.length > 0) {
+        banner.classList.remove('hidden');
+        document.getElementById('pendingCount').textContent = pending.length;
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      document.getElementById('addStockForm').classList.toggle('hidden', !isOwner);
+      document.getElementById('stockLockNotice').classList.toggle('hidden', isOwner);
+
+      document.getElementById('inventoryTable').innerHTML = state.products.map(p => `
+        <div class="py-2.5 flex items-center justify-between text-xs">
+          <div>
+            <p class="font-bold text-slate-800">${p.name}</p>
+            <p class="text-slate-500">
+              ${isOwner ? `Cost: ${formatNaira(p.cost)} • ` : ''}Sell: <strong class="text-emerald-700">${formatNaira(p.sell)}</strong>
+            </p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full font-bold ${p.qty <= 3 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-800'}">
+            ${p.qty} left
+          </span>
+        </div>
+      `).join('');
+
+      const totalSales = state.logs.filter(l => l.type === 'SALE').reduce((s, l) => s + l.revenue, 0);
+      const cashProfit = state.logs.filter(l => l.type === 'SALE').reduce((s, l) => s + l.profit, 0);
+      const totalFamily = state.logs.filter(l => l.type === 'FAMILY_DRAW' && l.status === 'APPROVED').reduce((s, l) => s + l.costValue, 0);
+
+      document.getElementById('todaySalesVal').textContent = formatNaira(totalSales);
+      document.getElementById('todayFamilyVal').textContent = formatNaira(totalFamily);
+
+      document.getElementById('ownerProfitCard').classList.toggle('hidden', !isOwner);
+      if (isOwner) {
+        document.getElementById('repRevenue').textContent = formatNaira(totalSales);
+        document.getElementById('repCashProfit').textContent = formatNaira(cashProfit);
+        document.getElementById('repFamilyDraw').textContent = formatNaira(totalFamily);
+        document.getElementById('repTrueProfit').textContent = formatNaira(cashProfit + totalFamily);
+      }
+
+      const logContainer = document.getElementById('auditLogList');
+      if (state.logs.length === 0) {
+        logContainer.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">No transactions logged yet. Record a sale or family draw to test.</p>`;
+      } else {
+        logContainer.innerHTML = state.logs.map(l => {
+          const isSale = l.type === 'SALE';
+          const badgeColor = isSale ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900';
+          return `
+            <div class="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded font-bold text-[10px] ${badgeColor}">
+                  ${isSale ? '💵 SALE' : '🏠 FAMILY DRAW'} (${l.status})
+                </span>
+                <span class="text-[10px] text-slate-400">${l.timestamp} • By ${l.recordedBy}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-800">${l.qty}x ${l.productName}</span>
+                <span class="font-bold ${isSale ? 'text-emerald-700' : 'text-amber-700'}">
+                  ${isSale ? formatNaira(l.revenue) : `Cost: ${formatNaira(l.costValue)}`}
+                </span>
+              </div>
+              ${(isOwner && l.status === 'PENDING_APPROVAL') ? `
+                <div class="flex gap-2 pt-1">
+                  <button onclick="approvePendingDraw('${l.id}', true)" class="flex-1 bg-emerald-600 text-white py-1 rounded font-bold text-[11px]">✓ Approve Family Use</button>
+                  <button onclick="approvePendingDraw('${l.id}', false)" class="flex-1 bg-rose-600 text-white py-1 rounded font-bold text-[11px]">✕ Reject & Restore</button>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+
+      filterPosItems();
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    window.addEventListener('offline', () => {
+      document.getElementById('offlineBadge').textContent = '● Offline Mode (Saving Locally)';
+    });
+    window.addEventListener('online', () => {
+      document.getElementById('offlineBadge').textContent = '● Online & Offline-Ready';
+    });
+
+    updateUI();
+  </script>
+</body>
+</html>

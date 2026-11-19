@@ -3,576 +3,763 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#059669" />
-  <title>TradetrackV — Inventory & Family-Draw Tracker</title>
+  <title>TradetrackV — Smart Shop Inventory</title>
   <link rel="manifest" href="/manifest.json" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    .tab-active { color: #059669; border-top: 3px solid #059669; font-weight: 700; }
+    :root {
+      --green: #0f7a4a;
+      --green-dark: #0a5835;
+      --amber: #f5b82e;
+      --bg: #f3f6f4;
+      --card: #ffffff;
+      --text: #1c2822;
+      --muted: #64746b;
+    }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); padding-bottom: 80px; }
+    header {
+      background: var(--green); color: #fff; padding: 14px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .logo-badge {
+      background: #fff; color: var(--green); font-weight: 800;
+      padding: 4px 8px; border-radius: 6px; font-size: 14px;
+    }
+    .status-dot { font-size: 11px; opacity: 0.92; display: block; }
+    .plan-pill {
+      display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 99px; margin-left: 6px; vertical-align: middle;
+    }
+    .plan-freemium { background: #e2ece7; color: var(--green-dark); }
+    .plan-premium { background: var(--amber); color: #1c2822; }
+    .mode-btn {
+      background: var(--amber); color: #1c2822; border: none; border-radius: 20px;
+      padding: 7px 13px; font-weight: 700; font-size: 12px; cursor: pointer;
+    }
+    .mode-btn.owner { background: #ffffff; color: var(--green-dark); }
+    .container { max-width: 540px; margin: 0 auto; padding: 14px; }
+    .card {
+      background: var(--card); border-radius: 14px; padding: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 14px;
+    }
+    .row-between { display: flex; justify-content: space-between; align-items: center; }
+    h2, h3 { margin: 0 0 10px 0; font-size: 16px; }
+    input, select {
+      width: 100%; padding: 12px; border: 1.5px solid #dce3df; border-radius: 10px;
+      font-size: 15px; margin-bottom: 10px; background: #fff; font-family: inherit;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--green); }
+    .btn {
+      width: 100%; padding: 12px; border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none;
+      display: inline-block; text-align: center;
+    }
+    .btn-primary { background: var(--green); color: #fff; }
+    .btn-dark { background: #1c2822; color: #fff; padding: 8px 12px; font-size: 13px; width: auto; }
+    .btn-amber { background: #fff4d6; color: #9a6700; border: 1px solid #f5b82e; }
+    .btn-gold { background: var(--amber); color: #1c2822; }
+    .btn-sm { padding: 7px 12px; font-size: 13px; width: auto; border-radius: 8px; }
+    .item-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid #eef2f0;
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-title { font-weight: 700; font-size: 15px; }
+    .item-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .price-tag { font-weight: 800; color: var(--green); font-size: 15px; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-box { background: var(--card); padding: 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+    .stat-val { font-size: 20px; font-weight: 800; margin-top: 4px; color: var(--green); }
+    .stat-val.amber { color: #d98200; }
+    .premium-box {
+      background: #faf6eb; border: 1px dashed #e2b84b; border-radius: 12px;
+      padding: 14px; margin-bottom: 12px;
+    }
+    nav.bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
+      display: flex; border-top: 1px solid #e1e7e4; z-index: 50;
+    }
+    .nav-item {
+      flex: 1; text-align: center; padding: 10px 4px; font-size: 12px;
+      font-weight: 700; color: var(--muted); cursor: pointer; border-top: 3px solid transparent;
+    }
+    .nav-item.active { color: var(--green); border-top-color: var(--green); }
+    .hidden { display: none !important; }
+    #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100;
+    }
+    .modal-box { background: #fff; width: 100%; max-width: 400px; border-radius: 16px; padding: 18px; }
+    .tab-switch { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab-switch button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #dce3df; font-weight: 700; background: #f8faf9; }
+    .tab-switch button.active { background: var(--green); color: #fff; border-color: var(--green); }
+    .toast {
+      position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+      background: #1c2822; color: #fff; padding: 10px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 pb-24 max-w-md mx-auto min-h-screen shadow-xl relative">
+<body>
 
-  <header class="bg-emerald-700 text-white px-4 py-3.5 sticky top-0 z-30 shadow-md">
-    <div class="flex items-center justify-between">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="bg-white text-emerald-800 font-extrabold text-xs px-2 py-0.5 rounded">TV</span>
-          <h1 class="font-bold text-lg tracking-tight">TradetrackV</h1>
-        </div>
-        <p id="offlineBadge" class="text-[11px] text-emerald-100 mt-0.5">● Offline-Ready Storage Active</p>
-      </div>
-      <button onclick="toggleRoleModal()" id="roleBadgeBtn"
-        class="bg-amber-400 text-slate-900 font-bold text-xs px-3 py-1.5 rounded-full shadow flex items-center gap-1 active:scale-95 transition">
-        <span id="roleIcon">👩‍💼</span>
-        <span id="roleLabel">Salesgirl Mode</span>
-      </button>
+<div id="toast" class="toast hidden"></div>
+
+<div id="authScreen" class="container" style="padding-top: 30px;">
+  <div class="card">
+    <div style="text-align:center; margin-bottom:16px;">
+      <span class="logo-badge" style="background:var(--green); color:#fff; font-size:18px;">TV</span>
+      <h1 style="margin:8px 0 4px; font-size:22px;">TradetrackV</h1>
+      <p style="margin:0; font-size:13px; color:var(--muted);">Shop Inventory, Barcode Scan & Anti-Shrinkage</p>
     </div>
+
+    <div class="tab-switch">
+      <button id="tabLoginBtn" class="active" onclick="toggleAuthTab('login')">Shop Login</button>
+      <button id="tabRegBtn" onclick="toggleAuthTab('register')">Register New Shop</button>
+    </div>
+
+    <div id="loginForm">
+      <input type="text" id="loginUser" placeholder="Shop Username or Phone Number" />
+      <input type="password" id="loginPass" placeholder="Password" />
+      <button class="btn btn-primary" onclick="handleLogin()">Enter Shop Dashboard</button>
+    </div>
+
+    <div id="registerForm" class="hidden">
+      <input type="text" id="regShopName" placeholder="Shop Name (e.g. Mama Chinedu Stores)" />
+      <input type="text" id="regUser" placeholder="Username or Phone Number" />
+      <input type="password" id="regPass" placeholder="Create Password" />
+      <input type="number" id="regPin" placeholder="4-Digit Owner PIN (Default: 1234)" maxlength="4" />
+
+      <label style="font-size:12px; font-weight:700; display:block; margin-bottom:4px;">Select Plan</label>
+      <select id="regPlan">
+        <option value="freemium">Freemium (Device Storage Only — No Cloud DB)</option>
+        <option value="premium">Premium (₦4,000 Moniepoint — Cloud DB, Setup & WhatsApp)</option>
+      </select>
+
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:12px;">
+        <input type="checkbox" id="regStarters" checked style="width:auto; margin:0;" />
+        Pre-load starter sample items
+      </label>
+      <button class="btn btn-primary" onclick="handleRegister()">Create Shop Account</button>
+    </div>
+  </div>
+</div>
+
+<div id="appScreen" class="hidden">
+  <header>
+    <div class="brand">
+      <div class="logo-badge">TV</div>
+      <div>
+        <div>
+          <span id="headerShopName" style="font-weight:800; font-size:16px;">TradetrackV</span>
+          <span id="headerPlanBadge" class="plan-pill plan-freemium">Freemium</span>
+        </div>
+        <span id="syncStatus" class="status-dot">● Device Storage Only</span>
+      </div>
+    </div>
+    <button id="modeToggleBtn" class="mode-btn" onclick="handleModeClick()">🔒 Salesgirl Mode</button>
   </header>
 
-  <div id="pendingBanner" class="hidden bg-amber-50 border-b border-amber-300 px-4 py-2.5 flex items-center justify-between">
-    <div class="text-xs text-amber-900">
-      <strong id="pendingCount">0</strong> pending Family Draw request(s) from staff
+  <div class="container">
+    <div id="viewSale">
+      <div class="card">
+        <div class="row-between" style="margin-bottom:10px;">
+          <h3 style="margin:0; font-size:13px; color:var(--muted); text-transform:uppercase;">Record Item Movement</h3>
+          <button class="btn btn-dark" onclick="toggleScanner()">📷 Scan Barcode</button>
+        </div>
+
+        <div id="scannerBox" class="hidden">
+          <div id="reader"></div>
+          <button class="btn btn-sm" style="background:#eee; width:100%; margin-bottom:10px;" onclick="stopScanner()">Close Camera</button>
+        </div>
+
+        <input type="text" id="searchInput" placeholder="Type product name or barcode..." oninput="renderProductList()" />
+        <div id="saleProductList"></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Today's Sales</div>
+          <div id="todaySalesVal" class="stat-val">₦0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Family Draws (Cost)</div>
+          <div id="todayDrawsVal" class="stat-val amber">₦0</div>
+        </div>
+      </div>
     </div>
-    <button onclick="switchTab('logs')" class="text-xs font-bold bg-amber-500 text-white px-2.5 py-1 rounded">Review</button>
-  </div>
 
-  <main class="p-4 space-y-4">
-    <section id="view-pos" class="space-y-4">
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Record Item Movement</h2>
-          <button onclick="toggleScanner()" id="scanBtn"
-            class="bg-slate-900 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 active:scale-95">
-            📷 <span id="scanBtnText">Scan Barcode</span>
-          </button>
+    <div id="viewStock" class="hidden">
+      <div class="card">
+        <div class="row-between" style="margin-bottom:10px;">
+          <h2 style="margin:0;">Shop Inventory</h2>
+          <button id="addProdBtn" class="btn btn-primary btn-sm hidden" onclick="openProductModal()">+ Add Item</button>
         </div>
-
-        <div id="scannerWrapper" class="hidden rounded-xl overflow-hidden border border-slate-300 bg-black">
-          <div id="reader" class="w-full"></div>
-          <button onclick="stopScanner()" class="w-full py-2 bg-rose-600 text-white text-xs font-bold">Close Camera</button>
-        </div>
-
-        <div class="relative">
-          <input type="text" id="posSearch" oninput="filterPosItems()" placeholder="Type product name or barcode..."
-            class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        </div>
-
-        <div id="posProductList" class="max-h-60 overflow-y-auto divide-y divide-slate-100"></div>
-      </div>
-
-      <div id="actionPanel" class="hidden bg-white rounded-2xl p-4 shadow-md border-2 border-emerald-500 space-y-3">
-        <div class="flex justify-between items-start">
-          <div>
-            <span id="selBarcode" class="text-[11px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded"></span>
-            <h3 id="selName" class="font-bold text-base text-slate-900 mt-1"></h3>
-            <p class="text-xs text-slate-500">In Stock: <strong id="selStock" class="text-slate-800"></strong> | Price: <strong id="selPrice" class="text-emerald-700"></strong></p>
-          </div>
-          <button onclick="clearSelection()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <label class="text-xs font-bold text-slate-600">Quantity:</label>
-          <div class="flex items-center border border-slate-300 rounded-lg overflow-hidden">
-            <button onclick="adjustQty(-1)" class="px-3 py-1.5 bg-slate-100 font-bold text-base">-</button>
-            <input type="number" id="selQty" value="1" min="1" class="w-14 text-center font-bold text-sm focus:outline-none" />
-            <button onclick="adjustQty(1)" class="px-3 py-1.5 bg-slate-100 font-bold text-base">+</button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2.5 pt-1">
-          <button onclick="recordMovement('SALE')"
-            class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-3 rounded-xl text-xs shadow flex flex-col items-center justify-center active:scale-95 transition">
-            <span class="text-sm">💵 Customer Sale</span>
-            <span class="text-[10px] font-normal opacity-90">Adds Cash Revenue</span>
-          </button>
-
-          <button onclick="recordMovement('FAMILY_DRAW')"
-            class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 px-3 rounded-xl text-xs shadow flex flex-col items-center justify-center active:scale-95 transition">
-            <span class="text-sm">🏠 Family / Owner Use</span>
-            <span id="familyBtnSub" class="text-[10px] font-normal opacity-90">Logs Draw (₦0 Sale)</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-[11px] font-semibold text-slate-500 uppercase">Today's Sales</p>
-          <p id="todaySalesVal" class="text-lg font-extrabold text-emerald-700 mt-0.5">₦0</p>
-        </div>
-        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-[11px] font-semibold text-slate-500 uppercase">Family Draws (Cost)</p>
-          <p id="todayFamilyVal" class="text-lg font-extrabold text-amber-600 mt-0.5">₦0</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="view-stock" class="hidden space-y-4">
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="font-bold text-slate-800 text-sm uppercase">Shop Stock Ledger</h2>
-          <span id="stockLockNotice" class="text-[11px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">🔒 Owner PIN needed to add/edit</span>
-        </div>
-
-        <form id="addStockForm" onsubmit="saveProduct(event)" class="hidden space-y-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <p class="text-xs font-bold text-emerald-800">+ Add New Product or Restock</p>
-          <div class="grid grid-cols-2 gap-2">
-            <input type="text" id="prodBarcode" placeholder="Barcode (optional)" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
-            <input type="text" id="prodName" required placeholder="Item Name *" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <input type="number" id="prodCost" required min="1" placeholder="Cost Price (₦)*" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
-            <input type="number" id="prodSell" required min="1" placeholder="Sell Price (₦)*" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
-            <input type="number" id="prodQty" required min="1" placeholder="Qty *" class="border rounded-lg px-2.5 py-2 text-xs bg-white" />
-          </div>
-          <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-2 rounded-lg text-xs shadow">Save to Inventory</button>
-        </form>
-
-        <div id="inventoryTable" class="divide-y divide-slate-100"></div>
-      </div>
-    </section>
-
-    <section id="view-logs" class="hidden space-y-4">
-      <div id="ownerProfitCard" class="hidden bg-slate-900 text-white rounded-2xl p-4 shadow-md space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-400">True Business Profit Engine</h2>
-          <button onclick="exportWhatsApp()" class="bg-emerald-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">📲 WhatsApp Report</button>
-        </div>
-        <div class="grid grid-cols-2 gap-3 text-xs">
-          <div class="bg-slate-800 p-2.5 rounded-xl">
-            <span class="text-slate-400 block">Cash/POS Revenue</span>
-            <strong id="repRevenue" class="text-base text-white">₦0</strong>
-          </div>
-          <div class="bg-slate-800 p-2.5 rounded-xl">
-            <span class="text-slate-400 block">Cash Profit (Margin)</span>
-            <strong id="repCashProfit" class="text-base text-emerald-400">₦0</strong>
-          </div>
-          <div class="bg-slate-800 p-2.5 rounded-xl">
-            <span class="text-slate-400 block">Family Draws (At Cost)</span>
-            <strong id="repFamilyDraw" class="text-base text-amber-400">₦0</strong>
-          </div>
-          <div class="bg-emerald-950 border border-emerald-700 p-2.5 rounded-xl">
-            <span class="text-emerald-300 block">True Combined Value</span>
-            <strong id="repTrueProfit" class="text-base text-emerald-300">₦0</strong>
-          </div>
-        </div>
-        <p class="text-[11px] text-slate-300 leading-relaxed">
-          * <strong>True Combined Value</strong> = Cash Profit + Goods consumed by your household (at cost), preventing false theft alarms and showing real shop performance.
+        <p id="stockLockNotice" style="font-size:12px; color:var(--muted); margin-top:0;">
+          🔒 Switch to <strong>Owner Mode</strong> (top right) to add or edit items.
         </p>
+        <div id="stockList"></div>
+      </div>
+    </div>
+
+    <div id="viewLogs" class="hidden">
+      <div id="freemiumUpgradeCard" class="premium-box hidden">
+        <h3 style="margin:0 0 6px;">Upgrade to Premium — ₦4,000</h3>
+        <p style="font-size:13px; color:var(--muted); margin:0 0 8px;">
+          Freemium records stay on this device only and are <strong>not</strong> saved to the database.
+        </p>
+        <p style="font-size:13px; margin:0 0 10px;">
+          • <strong>Payment:</strong> ₦4,000 to Moniepoint <strong>09061693582</strong><br/>
+          • <strong>Enquiries, Free Stock Setup & DB Reference:</strong> WhatsApp <strong>09061693582</strong> only
+        </p>
+        <a class="btn btn-gold" href="https://wa.me/2349061693582?text=Hello%20TradetrackV%2C%20I%20want%20Premium%20(Cloud%20DB%2C%20Free%20Stock%20Setup%20%26%20Reference)" target="_blank">
+          Chat on WhatsApp (09061693582)
+        </a>
       </div>
 
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="font-bold text-slate-800 text-sm uppercase">Tamper-Evident Audit Log</h2>
-          <button onclick="exportCSV()" class="text-xs text-emerald-700 font-bold underline">Download CSV</button>
+      <div id="premiumInfoCard" class="card hidden">
+        <h2>Premium Active — Cloud DB & WhatsApp Support</h2>
+        <p style="font-size:13px; color:var(--muted); margin:0 0 10px;">
+          Records are linked to the cloud database for future reference. For stock setup help, enquiries, or reference checks (₦4,000 Moniepoint plan):
+        </p>
+        <a class="btn btn-primary" href="https://wa.me/2349061693582?text=Hello%20TradetrackV%20Premium%20Support" target="_blank">
+          WhatsApp Support: 09061693582
+        </a>
+      </div>
+
+      <div class="card">
+        <h2>Sales & Activity Records</h2>
+        <div id="dateFilterControls" class="stats-grid hidden" style="margin-bottom:10px;">
+          <div>
+            <label style="font-size:11px; font-weight:700;">From Date</label>
+            <input type="date" id="filterStart" onchange="loadState()" />
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700;">To Date</label>
+            <input type="date" id="filterEnd" onchange="loadState()" />
+          </div>
         </div>
-        <div id="auditLogList" class="space-y-2.5 max-h-96 overflow-y-auto"></div>
-      </div>
-    </section>
-  </main>
 
-  <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 grid grid-cols-3 text-center z-30 shadow-lg">
-    <button onclick="switchTab('pos')" id="nav-pos" class="py-2.5 text-xs tab-active flex flex-col items-center gap-0.5">
-      <span class="text-base">🛒</span>
-      <span>Record Sale</span>
-    </button>
-    <button onclick="switchTab('stock')" id="nav-stock" class="py-2.5 text-xs text-slate-500 flex flex-col items-center gap-0.5">
-      <span class="text-base">📦</span>
-      <span>Stock</span>
-    </button>
-    <button onclick="switchTab('logs')" id="nav-logs" class="py-2.5 text-xs text-slate-500 flex flex-col items-center gap-0.5">
-      <span class="text-base">📊</span>
-      <span>Profit & Logs</span>
-    </button>
-  </nav>
+        <div id="ownerProfitBanner" class="stat-box hidden" style="background:#eaf7f0; margin-bottom:12px;">
+          <div class="stat-label">Net Profit</div>
+          <div id="periodProfitVal" class="stat-val">₦0</div>
+        </div>
 
-  <div id="pinModal" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl">
-      <h3 class="font-bold text-base text-slate-900">Switch Access Role</h3>
-      <p class="text-xs text-slate-600">Enter <strong>Owner PIN</strong> to unlock profit reports, stock editing, and direct Family Draw approvals. <em>(Demo PIN: <strong>1234</strong>)</em></p>
-      <input type="password" id="pinInput" maxlength="4" inputmode="numeric" placeholder="••••"
-        class="w-full text-center tracking-[0.6em] font-bold text-xl border border-slate-300 rounded-xl py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-      <p id="pinError" class="hidden text-xs text-rose-600 font-semibold text-center">Incorrect PIN. Try 1234.</p>
-      <div class="grid grid-cols-2 gap-2">
-        <button onclick="closePinModal()" class="py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-600">Cancel</button>
-        <button onclick="verifyOwnerPin()" class="py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Unlock Owner</button>
+        <div id="txLogList"></div>
       </div>
-      <div class="pt-2 border-t text-center">
-        <button onclick="changeOwnerPinPrompt()" class="text-[11px] text-slate-500 underline">Change Owner PIN</button>
-      </div>
+
+      <button class="btn" style="background:#e5ebe8; color:#1c2822;" onclick="handleLogout()">Log Out of Shop</button>
     </div>
   </div>
 
-  <script>
-    const DEFAULT_PRODUCTS = [
-      { id: 'P1', barcode: '615110001', name: 'Peak Evaporated Milk (Tin)', cost: 650, sell: 800, qty: 24 },
-      { id: 'P2', barcode: '615110002', name: 'Golden Penny Semovita 2kg', cost: 2400, sell: 2800, qty: 15 },
-      { id: 'P3', barcode: '615110003', name: 'Indomie Chicken Carton (40pcs)', cost: 9200, sell: 10500, qty: 8 },
-      { id: 'P4', barcode: '615110004', name: 'Devon Kings Cooking Oil 1L', cost: 2100, sell: 2500, qty: 12 },
-      { id: 'P5', barcode: '615110005', name: 'Milo Refill Sachet 400g', cost: 2700, sell: 3200, qty: 10 }
-    ];
+  <nav class="bottom-nav">
+    <div class="nav-item active" id="navSale" onclick="switchTab('sale')">🛒 Record Sale</div>
+    <div class="nav-item" id="navStock" onclick="switchTab('stock')">📦 Stock</div>
+    <div class="nav-item" id="navLogs" onclick="switchTab('logs')">📊 Records & Plan</div>
+  </nav>
+</div>
 
-    let state = {
-      role: 'SALESGIRL',
-      ownerPin: localStorage.getItem('ttv_pin') || '1234',
-      products: JSON.parse(localStorage.getItem('ttv_products')) || DEFAULT_PRODUCTS,
-      logs: JSON.parse(localStorage.getItem('ttv_logs')) || [],
-      selectedProductId: null,
-      scanner: null
+<div id="txModal" class="modal-backdrop hidden">
+  <div class="modal-box">
+    <h3 id="txModalTitle">Record Item</h3>
+    <p id="txModalSub" style="font-size:13px; color:var(--muted); margin-top:0;"></p>
+    <label style="font-size:12px; font-weight:700;">Quantity</label>
+    <input type="number" id="txQty" value="1" min="1" />
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px;">
+      <button class="btn btn-primary" onclick="submitTransaction('SALE')">Customer Sale</button>
+      <button class="btn btn-amber" onclick="submitTransaction('FAMILY_DRAW')">Family Draw</button>
+    </div>
+    <button class="btn" style="background:transparent; color:var(--muted); margin-top:6px;" onclick="closeModals()">Cancel</button>
+  </div>
+</div>
+
+<div id="prodModal" class="modal-backdrop hidden">
+  <div class="modal-box">
+    <h3 id="prodModalTitle">Add / Edit Product</h3>
+    <input type="hidden" id="editProdId" />
+    <div style="display:flex; gap:6px;">
+      <input type="text" id="prodBarcode" placeholder="Barcode (Scan or type)" />
+      <button class="btn btn-dark" style="height:45px;" onclick="lookupBarcodeForForm()">Lookup</button>
+    </div>
+    <input type="text" id="prodName" placeholder="Product Name" />
+    <button class="btn btn-amber" style="padding:8px; font-size:13px; margin-bottom:10px;" onclick="linkBarcodeToRenderDB()">
+      Link Barcode to Render DB
+    </button>
+    <div class="stats-grid">
+      <input type="number" id="prodCost" placeholder="Cost Price (₦)" />
+      <input type="number" id="prodSell" placeholder="Selling Price (₦)" />
+    </div>
+    <input type="number" id="prodQty" placeholder="Stock Quantity" />
+    <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+    <button class="btn" style="background:transparent; color:var(--muted); margin-top:6px;" onclick="closeModals()">Cancel</button>
+  </div>
+</div>
+
+<div id="pinModal" class="modal-backdrop hidden">
+  <div class="modal-box">
+    <h3>Unlock Owner Mode</h3>
+    <p style="font-size:13px; color:var(--muted);">Enter your 4-digit Owner PIN.</p>
+    <input type="password" id="ownerPinInput" placeholder="••••" maxlength="4" style="text-align:center; font-size:22px; letter-spacing:8px;" />
+    <button class="btn btn-primary" onclick="verifyOwnerPin()">Unlock</button>
+    <button class="btn" style="background:transparent; color:var(--muted); margin-top:6px;" onclick="closeModals()">Cancel</button>
+  </div>
+</div>
+
+<script>
+  const STARTERS = [
+    { id: 101, barcode: "615110001", name: "Peak Evaporated Milk (Tin)", cost_price: 700, selling_price: 800, stock_qty: 24 },
+    { id: 102, barcode: "615110002", name: "Golden Penny Semovita 2kg", cost_price: 2500, selling_price: 2800, stock_qty: 15 },
+    { id: 103, barcode: "615110003", name: "Indomie Chicken Carton (40pcs)", cost_price: 9600, selling_price: 10500, stock_qty: 8 },
+    { id: 104, barcode: "615110004", name: "Devon Kings Cooking Oil 1L", cost_price: 2200, selling_price: 2500, stock_qty: 12 }
+  ];
+
+  let appState = { shop: null, products: [], transactions: [], db_storage_enabled: false };
+  let isOwnerMode = false;
+  let selectedProduct = null;
+  let html5QrCode = null;
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.remove("hidden");
+    setTimeout(() => t.classList.add("hidden"), 3200);
+  }
+
+  function localKey(shopId) {
+    return `ttv_freemium_local_${shopId}`;
+  }
+
+  function getLocalFreemiumData(shop, loadStarters) {
+    const saved = localStorage.getItem(localKey(shop.id));
+    if (saved) return JSON.parse(saved);
+    return {
+      products: loadStarters ? JSON.parse(JSON.stringify(STARTERS)) : [],
+      transactions: []
     };
+  }
 
-    function saveState() {
-      localStorage.setItem('ttv_products', JSON.stringify(state.products));
-      localStorage.setItem('ttv_logs', JSON.stringify(state.logs));
-      localStorage.setItem('ttv_pin', state.ownerPin);
+  function saveLocalFreemiumData(shopId, data) {
+    localStorage.setItem(localKey(shopId), JSON.stringify(data));
+  }
+
+  function toggleAuthTab(tab) {
+    document.getElementById("loginForm").classList.toggle("hidden", tab !== "login");
+    document.getElementById("registerForm").classList.toggle("hidden", tab !== "register");
+    document.getElementById("tabLoginBtn").classList.toggle("active", tab === "login");
+    document.getElementById("tabRegBtn").classList.toggle("active", tab === "register");
+  }
+
+  async function handleRegister() {
+    const loadStarters = document.getElementById("regStarters").checked;
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        shop_name: document.getElementById("regShopName").value,
+        username: document.getElementById("regUser").value,
+        password: document.getElementById("regPass").value,
+        owner_pin: document.getElementById("regPin").value,
+        plan_tier: document.getElementById("regPlan").value,
+        load_starters: loadStarters
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) return showToast(data.error);
+
+    if (data.shop.plan_tier === "freemium") {
+      const localData = getLocalFreemiumData(data.shop, loadStarters);
+      saveLocalFreemiumData(data.shop.id, localData);
     }
+    loadState();
+  }
 
-    function formatNaira(num) {
-      return '₦' + Number(num || 0).toLocaleString('en-NG');
+  async function handleLogin() {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: document.getElementById("loginUser").value,
+        password: document.getElementById("loginPass").value
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) return showToast(data.error);
+    loadState();
+  }
+
+  async function handleLogout() {
+    await fetch("/api/logout", { method: "POST" });
+    isOwnerMode = false;
+    document.getElementById("appScreen").classList.add("hidden");
+    document.getElementById("authScreen").classList.remove("hidden");
+  }
+
+  async function loadState() {
+    const start = document.getElementById("filterStart").value;
+    const end = document.getElementById("filterEnd").value;
+    let url = "/api/state";
+    if (start || end) url += `?start_date=${start}&end_date=${end}`;
+
+    const res = await fetch(url);
+    if (res.status === 401) {
+      document.getElementById("authScreen").classList.remove("hidden");
+      document.getElementById("appScreen").classList.add("hidden");
+      return;
     }
+    const serverState = await res.json();
 
-    function toggleRoleModal() {
-      if (state.role === 'OWNER') {
-        state.role = 'SALESGIRL';
-        updateUI();
-        alert('Switched to Salesgirl Mode. Cost prices, profit summaries, and stock editing are now locked.');
-      } else {
-        document.getElementById('pinInput').value = '';
-        document.getElementById('pinError').classList.add('hidden');
-        document.getElementById('pinModal').classList.remove('hidden');
-        document.getElementById('pinInput').focus();
-      }
-    }
-
-    function closePinModal() {
-      document.getElementById('pinModal').classList.add('hidden');
-    }
-
-    function verifyOwnerPin() {
-      const entered = document.getElementById('pinInput').value.trim();
-      if (entered === state.ownerPin) {
-        state.role = 'OWNER';
-        closePinModal();
-        updateUI();
-      } else {
-        document.getElementById('pinError').classList.remove('hidden');
-      }
-    }
-
-    function changeOwnerPinPrompt() {
-      const current = prompt('Enter current Owner PIN:');
-      if (current !== state.ownerPin) return alert('Current PIN incorrect.');
-      const next = prompt('Enter new 4-digit Owner PIN:');
-      if (next && /^\d{4}$/.test(next)) {
-        state.ownerPin = next;
-        saveState();
-        alert('Owner PIN updated successfully!');
-      } else {
-        alert('PIN must be exactly 4 digits.');
-      }
-    }
-
-    function switchTab(tab) {
-      ['pos', 'stock', 'logs'].forEach(t => {
-        document.getElementById('view-' + t).classList.add('hidden');
-        document.getElementById('nav-' + t).classList.remove('tab-active');
-        document.getElementById('nav-' + t).classList.add('text-slate-500');
-      });
-      document.getElementById('view-' + tab).classList.remove('hidden');
-      document.getElementById('nav-' + tab).classList.add('tab-active');
-      document.getElementById('nav-' + tab).classList.remove('text-slate-500');
-      if (tab !== 'pos') stopScanner();
-      updateUI();
-    }
-
-    function filterPosItems() {
-      const q = document.getElementById('posSearch').value.toLowerCase().trim();
-      const container = document.getElementById('posProductList');
-      const matches = state.products.filter(p =>
-        p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q))
-      );
-
-      if (matches.length === 0) {
-        container.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">No matching product found.</p>`;
-        return;
-      }
-
-      container.innerHTML = matches.map(p => `
-        <button onclick="selectProduct('${p.id}')" class="w-full text-left py-2.5 px-2 hover:bg-emerald-50 flex items-center justify-between transition">
-          <div>
-            <p class="text-sm font-semibold text-slate-800">${p.name}</p>
-            <p class="text-[11px] text-slate-500">Stock: <strong class="${p.qty <= 3 ? 'text-rose-600' : 'text-slate-700'}">${p.qty}</strong> • Code: ${p.barcode || 'N/A'}</p>
-          </div>
-          <span class="font-bold text-sm text-emerald-700">${formatNaira(p.sell)}</span>
-        </button>
-      `).join('');
-    }
-
-    function selectProduct(id) {
-      const prod = state.products.find(p => p.id === id);
-      if (!prod) return;
-      state.selectedProductId = id;
-      document.getElementById('selBarcode').textContent = prod.barcode || 'NO BARCODE';
-      document.getElementById('selName').textContent = prod.name;
-      document.getElementById('selStock').textContent = prod.qty;
-      document.getElementById('selPrice').textContent = formatNaira(prod.sell);
-      document.getElementById('selQty').value = 1;
-      document.getElementById('actionPanel').classList.remove('hidden');
-    }
-
-    function clearSelection() {
-      state.selectedProductId = null;
-      document.getElementById('actionPanel').classList.add('hidden');
-    }
-
-    function adjustQty(delta) {
-      const input = document.getElementById('selQty');
-      const next = Math.max(1, (parseInt(input.value) || 1) + delta);
-      input.value = next;
-    }
-
-    function recordMovement(type) {
-      const prod = state.products.find(p => p.id === state.selectedProductId);
-      if (!prod) return;
-      const qty = parseInt(document.getElementById('selQty').value) || 1;
-
-      if (qty > prod.qty) {
-        return alert(`Insufficient stock! Only ${prod.qty} unit(s) of ${prod.name} available.`);
-      }
-
-      prod.qty -= qty;
-
-      const isOwner = state.role === 'OWNER';
-      const status = (type === 'FAMILY_DRAW' && !isOwner) ? 'PENDING_APPROVAL' : 'APPROVED';
-
-      const entry = {
-        id: 'LOG-' + Date.now(),
-        timestamp: new Date().toLocaleString('en-NG', { dateStyle: 'short', timeStyle: 'short' }),
-        type: type,
-        status: status,
-        recordedBy: state.role,
-        productName: prod.name,
-        qty: qty,
-        revenue: type === 'SALE' ? prod.sell * qty : 0,
-        costValue: prod.cost * qty,
-        profit: type === 'SALE' ? (prod.sell - prod.cost) * qty : 0
+    if (serverState.db_storage_enabled) {
+      appState = serverState;
+      document.getElementById("syncStatus").textContent = "● Cloud DB Active (Premium)";
+    } else {
+      const localData = getLocalFreemiumData(serverState.shop, false);
+      appState = {
+        shop: serverState.shop,
+        db_storage_enabled: false,
+        products: localData.products,
+        transactions: localData.transactions
       };
-
-      state.logs.unshift(entry);
-      saveState();
-      clearSelection();
-      document.getElementById('posSearch').value = '';
-      updateUI();
-
-      if (status === 'PENDING_APPROVAL') {
-        alert(`Logged ${qty}x ${prod.name} as Family Draw (Pending Owner Approval). Stock deducted.`);
-      }
+      document.getElementById("syncStatus").textContent = "● Device Storage Only (Not in DB)";
     }
 
-    function approvePendingDraw(logId, approve) {
-      if (state.role !== 'OWNER') return;
-      const idx = state.logs.findIndex(l => l.id === logId);
-      if (idx === -1) return;
-      const log = state.logs[idx];
+    document.getElementById("authScreen").classList.add("hidden");
+    document.getElementById("appScreen").classList.remove("hidden");
+    document.getElementById("headerShopName").textContent = appState.shop.shop_name;
+    renderPlanUI();
+    renderAll();
+  }
 
-      if (approve) {
-        log.status = 'APPROVED';
-      } else {
-        log.status = 'REJECTED_SHORTAGE';
-        const prod = state.products.find(p => p.name === log.productName);
-        if (prod) prod.qty += log.qty;
-      }
-      saveState();
-      updateUI();
+  function renderPlanUI() {
+    const isPremium = appState.db_storage_enabled;
+    const badge = document.getElementById("headerPlanBadge");
+    badge.textContent = isPremium ? "Premium" : "Freemium";
+    badge.className = `plan-pill ${isPremium ? "plan-premium" : "plan-freemium"}`;
+
+    document.getElementById("freemiumUpgradeCard").classList.toggle("hidden", isPremium);
+    document.getElementById("premiumInfoCard").classList.toggle("hidden", !isPremium);
+    document.getElementById("dateFilterControls").classList.toggle("hidden", !isPremium);
+  }
+
+  function renderAll() {
+    renderProductList();
+    renderStockList();
+    renderLogsAndStats();
+    updateRoleUI();
+  }
+
+  function updateRoleUI() {
+    const btn = document.getElementById("modeToggleBtn");
+    if (isOwnerMode) {
+      btn.textContent = "👑 Owner Mode";
+      btn.classList.add("owner");
+      document.getElementById("addProdBtn").classList.remove("hidden");
+      document.getElementById("stockLockNotice").classList.add("hidden");
+      document.getElementById("ownerProfitBanner").classList.remove("hidden");
+    } else {
+      btn.textContent = "🔒 Salesgirl Mode";
+      btn.classList.remove("owner");
+      document.getElementById("addProdBtn").classList.add("hidden");
+      document.getElementById("stockLockNotice").classList.remove("hidden");
+      document.getElementById("ownerProfitBanner").classList.add("hidden");
+    }
+  }
+
+  function handleModeClick() {
+    if (isOwnerMode) {
+      isOwnerMode = false;
+      updateRoleUI();
+      renderStockList();
+      showToast("Switched to Salesgirl Mode");
+    } else {
+      document.getElementById("ownerPinInput").value = "";
+      document.getElementById("pinModal").classList.remove("hidden");
+    }
+  }
+
+  async function verifyOwnerPin() {
+    const pin = document.getElementById("ownerPinInput").value;
+    const res = await fetch("/api/verify-pin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin })
+    });
+    if (res.ok) {
+      isOwnerMode = true;
+      closeModals();
+      updateRoleUI();
+      renderStockList();
+      showToast("Owner Mode Unlocked");
+    } else {
+      showToast("Wrong PIN (Default is 1234)");
+    }
+  }
+
+  function renderProductList() {
+    const q = document.getElementById("searchInput").value.toLowerCase().trim();
+    const list = document.getElementById("saleProductList");
+    const filtered = appState.products.filter(p =>
+      p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q))
+    );
+
+    if (!filtered.length) {
+      list.innerHTML = `<p style="font-size:13px; color:var(--muted);">No matching item in list.</p>`;
+      return;
     }
 
-    function toggleScanner() {
-      const wrapper = document.getElementById('scannerWrapper');
-      if (!wrapper.classList.contains('hidden')) {
-        return stopScanner();
-      }
-      wrapper.classList.remove('hidden');
-      state.scanner = new Html5Qrcode("reader");
-      state.scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 220, height: 120 } },
-        (decodedText) => {
-          document.getElementById('posSearch').value = decodedText;
-          filterPosItems();
-          const exact = state.products.find(p => p.barcode === decodedText);
-          if (exact) selectProduct(exact.id);
-          stopScanner();
-        },
-        () => {}
-      ).catch(err => {
-        alert("Camera access unavailable or denied. You can still type product names or codes manually.");
-        stopScanner();
-      });
-    }
-
-    function stopScanner() {
-      const wrapper = document.getElementById('scannerWrapper');
-      wrapper.classList.add('hidden');
-      if (state.scanner) {
-        state.scanner.stop().catch(() => {});
-        state.scanner = null;
-      }
-    }
-
-    function saveProduct(e) {
-      e.preventDefault();
-      if (state.role !== 'OWNER') return;
-      const barcode = document.getElementById('prodBarcode').value.trim();
-      const name = document.getElementById('prodName').value.trim();
-      const cost = parseFloat(document.getElementById('prodCost').value);
-      const sell = parseFloat(document.getElementById('prodSell').value);
-      const qty = parseInt(document.getElementById('prodQty').value);
-
-      const existing = state.products.find(p => p.name.toLowerCase() === name.toLowerCase() || (barcode && p.barcode === barcode));
-      if (existing) {
-        existing.cost = cost;
-        existing.sell = sell;
-        existing.qty += qty;
-      } else {
-        state.products.unshift({
-          id: 'P' + Date.now(),
-          barcode: barcode || String(Math.floor(100000000 + Math.random() * 900000000)),
-          name, cost, sell, qty
-        });
-      }
-      e.target.reset();
-      saveState();
-      updateUI();
-    }
-
-    function exportWhatsApp() {
-      const totalSales = state.logs.filter(l => l.type === 'SALE').reduce((s, l) => s + l.revenue, 0);
-      const totalFamily = state.logs.filter(l => l.type === 'FAMILY_DRAW' && l.status === 'APPROVED').reduce((s, l) => s + l.costValue, 0);
-      const cashProfit = state.logs.filter(l => l.type === 'SALE').reduce((s, l) => s + l.profit, 0);
-      const msg = `*TradetrackV Daily Shop Summary*%0A` +
-        `• Cash/POS Sales: ${formatNaira(totalSales)}%0A` +
-        `• Cash Profit: ${formatNaira(cashProfit)}%0A` +
-        `• Family/Owner Draws (Cost): ${formatNaira(totalFamily)}%0A` +
-        `• True Combined Value: ${formatNaira(cashProfit + totalFamily)}%0A` +
-        `• Total Transactions: ${state.logs.length}`;
-      window.open(`https://wa.me/?text=${msg}`, '_blank');
-    }
-
-    function exportCSV() {
-      const headers = ['Timestamp,Type,Status,RecordedBy,Product,Qty,Revenue,CostValue,Profit'];
-      const rows = state.logs.map(l =>
-        `"${l.timestamp}",${l.type},${l.status},${l.recordedBy},"${l.productName}",${l.qty},${l.revenue},${l.costValue},${l.profit}`
-      );
-      const blob = new Blob([headers.concat(rows).join('\n')], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tradetrackv_audit_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-    }
-
-    function updateUI() {
-      const isOwner = state.role === 'OWNER';
-
-      const roleBtn = document.getElementById('roleBadgeBtn');
-      document.getElementById('roleIcon').textContent = isOwner ? '👑' : '👩‍💼';
-      document.getElementById('roleLabel').textContent = isOwner ? 'Owner Mode' : 'Salesgirl Mode';
-      roleBtn.className = isOwner
-        ? 'bg-emerald-950 text-emerald-300 border border-emerald-400 font-bold text-xs px-3 py-1.5 rounded-full shadow flex items-center gap-1 active:scale-95 transition'
-        : 'bg-amber-400 text-slate-900 font-bold text-xs px-3 py-1.5 rounded-full shadow flex items-center gap-1 active:scale-95 transition';
-
-      document.getElementById('familyBtnSub').textContent = isOwner ? 'Direct Owner Draw' : 'Requires Owner Approval';
-
-      const pending = state.logs.filter(l => l.status === 'PENDING_APPROVAL');
-      const banner = document.getElementById('pendingBanner');
-      if (isOwner && pending.length > 0) {
-        banner.classList.remove('hidden');
-        document.getElementById('pendingCount').textContent = pending.length;
-      } else {
-        banner.classList.add('hidden');
-      }
-
-      document.getElementById('addStockForm').classList.toggle('hidden', !isOwner);
-      document.getElementById('stockLockNotice').classList.toggle('hidden', isOwner);
-
-      document.getElementById('inventoryTable').innerHTML = state.products.map(p => `
-        <div class="py-2.5 flex items-center justify-between text-xs">
-          <div>
-            <p class="font-bold text-slate-800">${p.name}</p>
-            <p class="text-slate-500">
-              ${isOwner ? `Cost: ${formatNaira(p.cost)} • ` : ''}Sell: <strong class="text-emerald-700">${formatNaira(p.sell)}</strong>
-            </p>
-          </div>
-          <span class="px-2.5 py-1 rounded-full font-bold ${p.qty <= 3 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-800'}">
-            ${p.qty} left
-          </span>
+    list.innerHTML = filtered.map(p => `
+      <div class="item-row" style="cursor:pointer;" onclick="openTxModal(${p.id})">
+        <div>
+          <div class="item-title">${p.name}</div>
+          <div class="item-meta">Stock: <strong>${p.stock_qty}</strong> • Code: ${p.barcode || "N/A"}</div>
         </div>
-      `).join('');
+        <div class="price-tag">₦${Number(p.selling_price).toLocaleString()}</div>
+      </div>
+    `).join("");
+  }
 
-      const totalSales = state.logs.filter(l => l.type === 'SALE').reduce((s, l) => s + l.revenue, 0);
-      const cashProfit = state.logs.filter(l => l.type === 'SALE').reduce((s, l) => s + l.profit, 0);
-      const totalFamily = state.logs.filter(l => l.type === 'FAMILY_DRAW' && l.status === 'APPROVED').reduce((s, l) => s + l.costValue, 0);
+  function renderStockList() {
+    const list = document.getElementById("stockList");
+    list.innerHTML = appState.products.map(p => `
+      <div class="item-row">
+        <div>
+          <div class="item-title">${p.name}</div>
+          <div class="item-meta">Qty: <strong>${p.stock_qty}</strong> • Sell: ₦${Number(p.selling_price).toLocaleString()} ${isOwnerMode ? `• Cost: ₦${Number(p.cost_price).toLocaleString()}` : ""}</div>
+        </div>
+        ${isOwnerMode ? `<button class="btn btn-sm btn-amber" onclick='openProductModal(${JSON.stringify(p)})'>Edit</button>` : ""}
+      </div>
+    `).join("");
+  }
 
-      document.getElementById('todaySalesVal').textContent = formatNaira(totalSales);
-      document.getElementById('todayFamilyVal').textContent = formatNaira(totalFamily);
+  function renderLogsAndStats() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let todaySales = 0, todayDraws = 0, totalProfit = 0;
 
-      document.getElementById('ownerProfitCard').classList.toggle('hidden', !isOwner);
-      if (isOwner) {
-        document.getElementById('repRevenue').textContent = formatNaira(totalSales);
-        document.getElementById('repCashProfit').textContent = formatNaira(cashProfit);
-        document.getElementById('repFamilyDraw').textContent = formatNaira(totalFamily);
-        document.getElementById('repTrueProfit').textContent = formatNaira(cashProfit + totalFamily);
+    appState.transactions.forEach(t => {
+      totalProfit += Number(t.profit || 0);
+      if (String(t.created_at).startsWith(todayStr)) {
+        if (t.tx_type === "SALE") todaySales += Number(t.total_amount || 0);
+        if (t.tx_type === "FAMILY_DRAW") todayDraws += Number(t.total_amount || 0);
       }
+    });
 
-      const logContainer = document.getElementById('auditLogList');
-      if (state.logs.length === 0) {
-        logContainer.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">No transactions logged yet. Record a sale or family draw to test.</p>`;
+    document.getElementById("todaySalesVal").textContent = `₦${todaySales.toLocaleString()}`;
+    document.getElementById("todayDrawsVal").textContent = `₦${todayDraws.toLocaleString()}`;
+    document.getElementById("periodProfitVal").textContent = `₦${totalProfit.toLocaleString()}`;
+
+    const logList = document.getElementById("txLogList");
+    if (!appState.transactions.length) {
+      logList.innerHTML = `<p style="font-size:13px; color:var(--muted);">No records yet.</p>`;
+      return;
+    }
+
+    logList.innerHTML = appState.transactions.map(t => `
+      <div class="item-row">
+        <div>
+          <div class="item-title">${t.product_name} (x${t.qty})</div>
+          <div class="item-meta">${t.created_at} • ${t.tx_type === "FAMILY_DRAW" ? "Family Draw" : "Sale"} (${t.recorded_by})</div>
+        </div>
+        <div class="price-tag" style="color:${t.tx_type === "FAMILY_DRAW" ? "#d98200" : "var(--green)"}">
+          ₦${Number(t.total_amount).toLocaleString()}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function openTxModal(prodId) {
+    selectedProduct = appState.products.find(p => p.id === prodId);
+    if (!selectedProduct) return;
+    document.getElementById("txModalTitle").textContent = selectedProduct.name;
+    document.getElementById("txModalSub").textContent = `Price: ₦${Number(selectedProduct.selling_price).toLocaleString()} | Stock: ${selectedProduct.stock_qty}`;
+    document.getElementById("txQty").value = 1;
+    document.getElementById("txModal").classList.remove("hidden");
+  }
+
+  async function submitTransaction(txType) {
+    const qty = parseInt(document.getElementById("txQty").value || "1", 10);
+    if (selectedProduct.stock_qty < qty) {
+      return showToast(`Only ${selectedProduct.stock_qty} left in stock`);
+    }
+
+    if (!appState.db_storage_enabled) {
+      selectedProduct.stock_qty -= qty;
+      const totalAmount = txType === "FAMILY_DRAW"
+        ? Number(selectedProduct.cost_price || 0) * qty
+        : Number(selectedProduct.selling_price || 0) * qty;
+      const profit = txType === "FAMILY_DRAW"
+        ? 0
+        : (Number(selectedProduct.selling_price || 0) - Number(selectedProduct.cost_price || 0)) * qty;
+
+      appState.transactions.unshift({
+        id: Date.now(),
+        product_name: selectedProduct.name,
+        tx_type: txType,
+        qty,
+        total_amount: totalAmount,
+        profit,
+        recorded_by: isOwnerMode ? "Owner" : "Salesgirl",
+        created_at: new Date().toISOString().replace("T", " ").slice(0, 16)
+      });
+      saveLocalFreemiumData(appState.shop.id, {
+        products: appState.products,
+        transactions: appState.transactions
+      });
+      closeModals();
+      showToast("Saved on device (Freemium)");
+      renderAll();
+      return;
+    }
+
+    const res = await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        product_id: selectedProduct.id,
+        tx_type: txType,
+        qty,
+        recorded_by: isOwnerMode ? "Owner" : "Salesgirl"
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) return showToast(data.error);
+    closeModals();
+    showToast(data.message);
+    loadState();
+  }
+
+  function openProductModal(prod = null) {
+    document.getElementById("editProdId").value = prod ? prod.id : "";
+    document.getElementById("prodBarcode").value = prod ? prod.barcode : "";
+    document.getElementById("prodName").value = prod ? prod.name : "";
+    document.getElementById("prodCost").value = prod ? prod.cost_price : "";
+    document.getElementById("prodSell").value = prod ? prod.selling_price : "";
+    document.getElementById("prodQty").value = prod ? prod.stock_qty : "";
+    document.getElementById("prodModal").classList.remove("hidden");
+  }
+
+  async function lookupBarcodeForForm() {
+    const code = document.getElementById("prodBarcode").value.trim();
+    if (!code) return showToast("Enter or scan a barcode first");
+    const res = await fetch(`/api/barcode-lookup/${encodeURIComponent(code)}`);
+    const data = await res.json();
+    if (data.found) {
+      document.getElementById("prodName").value = data.name || (data.product && data.product.name) || "";
+      showToast("Barcode found in DB!");
+    } else {
+      showToast("New barcode—type name and tap Link Barcode to Render DB");
+    }
+  }
+
+  async function linkBarcodeToRenderDB() {
+    const barcode = document.getElementById("prodBarcode").value.trim();
+    const product_name = document.getElementById("prodName").value.trim();
+    if (!barcode || !product_name) return showToast("Enter both barcode and product name");
+    const res = await fetch("/api/link-barcode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barcode, product_name })
+    });
+    const data = await res.json();
+    showToast(data.message || data.error);
+  }
+
+  async function saveProduct() {
+    const idVal = document.getElementById("editProdId").value;
+    const barcode = document.getElementById("prodBarcode").value.trim();
+    const name = document.getElementById("prodName").value.trim();
+    const cost_price = Number(document.getElementById("prodCost").value || 0);
+    const selling_price = Number(document.getElementById("prodSell").value || 0);
+    const stock_qty = parseInt(document.getElementById("prodQty").value || "0", 10);
+
+    if (!name || selling_price <= 0) {
+      return showToast("Enter product name and selling price");
+    }
+
+    if (!appState.db_storage_enabled) {
+      if (idVal) {
+        const idx = appState.products.findIndex(p => String(p.id) === String(idVal));
+        if (idx > -1) {
+          appState.products[idx] = { ...appState.products[idx], barcode, name, cost_price, selling_price, stock_qty };
+        }
       } else {
-        logContainer.innerHTML = state.logs.map(l => {
-          const isSale = l.type === 'SALE';
-          const badgeColor = isSale ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900';
-          return `
-            <div class="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1.5">
-              <div class="flex items-center justify-between">
-                <span class="px-2 py-0.5 rounded font-bold text-[10px] ${badgeColor}">
-                  ${isSale ? '💵 SALE' : '🏠 FAMILY DRAW'} (${l.status})
-                </span>
-                <span class="text-[10px] text-slate-400">${l.timestamp} • By ${l.recordedBy}</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="font-bold text-slate-800">${l.qty}x ${l.productName}</span>
-                <span class="font-bold ${isSale ? 'text-emerald-700' : 'text-amber-700'}">
-                  ${isSale ? formatNaira(l.revenue) : `Cost: ${formatNaira(l.costValue)}`}
-                </span>
-              </div>
-              ${(isOwner && l.status === 'PENDING_APPROVAL') ? `
-                <div class="flex gap-2 pt-1">
-                  <button onclick="approvePendingDraw('${l.id}', true)" class="flex-1 bg-emerald-600 text-white py-1 rounded font-bold text-[11px]">✓ Approve Family Use</button>
-                  <button onclick="approvePendingDraw('${l.id}', false)" class="flex-1 bg-rose-600 text-white py-1 rounded font-bold text-[11px]">✕ Reject & Restore</button>
-                </div>
-              ` : ''}
-            </div>
-          `;
-        }).join('');
+        appState.products.push({ id: Date.now(), barcode, name, cost_price, selling_price, stock_qty });
       }
-
-      filterPosItems();
+      saveLocalFreemiumData(appState.shop.id, {
+        products: appState.products,
+        transactions: appState.transactions
+      });
+      closeModals();
+      showToast("Saved on device (Freemium)");
+      renderAll();
+      return;
     }
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    const res = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: idVal || null, barcode, name, cost_price, selling_price, stock_qty })
+    });
+    const data = await res.json();
+    if (!res.ok) return showToast(data.error);
+    closeModals();
+    showToast(data.message);
+    loadState();
+  }
+
+  function closeModals() {
+    document.querySelectorAll(".modal-backdrop").forEach(m => m.classList.add("hidden"));
+  }
+
+  function switchTab(tab) {
+    ["sale", "stock", "logs"].forEach(t => {
+      document.getElementById("view" + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle("hidden", t !== tab);
+      document.getElementById("nav" + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle("active", t === tab);
+    });
+  }
+
+  function toggleScanner() {
+    const box = document.getElementById("scannerBox");
+    if (!box.classList.contains("hidden")) return stopScanner();
+    box.classList.remove("hidden");
+
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 140 } },
+      async (decodedText) => {
+        stopScanner();
+        const localMatch = appState.products.find(p => p.barcode === decodedText);
+        if (localMatch) {
+          return openTxModal(localMatch.id);
+        }
+        const res = await fetch(`/api/barcode-lookup/${encodeURIComponent(decodedText)}`);
+        const data = await res.json();
+        if (isOwnerMode) {
+          openProductModal({ barcode: decodedText, name: data.found ? data.name : "", cost_price: "", selling_price: "", stock_qty: "" });
+        } else {
+          showToast(data.found ? `Found: ${data.name} (Ask Owner to add)` : "Barcode not found");
+        }
+      },
+      () => {}
+    ).catch(() => showToast("Allow camera permission in browser"));
+  }
+
+  function stopScanner() {
+    document.getElementById("scannerBox").classList.add("hidden");
+    if (html5QrCode) {
+      html5QrCode.stop().catch(() => {});
+      html5QrCode = null;
     }
+  }
 
-    window.addEventListener('offline', () => {
-      document.getElementById('offlineBadge').textContent = '● Offline Mode (Saving Locally)';
-    });
-    window.addEventListener('online', () => {
-      document.getElementById('offlineBadge').textContent = '● Online & Offline-Ready';
-    });
-
-    updateUI();
-  </script>
+  loadState();
+</script>
 </body>
 </html>

@@ -301,33 +301,47 @@ def barcode_lookup(barcode):
             "barcode": clean_code
         })
 
-    try:
-        resp = requests.get(
-            f"https://world.openfoodfacts.org/api/v2/product/{clean_code}.json",
-            headers={"User-Agent": "TradetrackV/1.0 (contact@tradetrackv.app)"},
-            timeout=4
-        )
-        if resp.status_code == 200:
-            payload = resp.json()
-            if payload.get("status") == 1:
-                prod_data = payload.get("product", {})
-                name = prod_data.get("product_name") or prod_data.get("generic_name")
-                brand = prod_data.get("brands", "")
-                if name:
-                    full_name = f"{brand} {name}".strip() if brand and brand.lower() not in name.lower() else name
-                    db.session.add(GlobalCatalog(barcode=clean_code, product_name=full_name[:150]))
-                    db.session.commit()
-                    return jsonify({
-                        "source": "open_food_facts",
-                        "found": True,
-                        "name": full_name[:150],
-                        "barcode": clean_code
-                    })
-    except Exception:
-        pass
+    open_sources = [
+        ("open_food_facts", f"https://world.openfoodfacts.org/api/v2/product/{clean_code}.json"),
+        ("open_beauty_facts", f"https://world.openbeautyfacts.org/api/v2/product/{clean_code}.json"),
+        ("open_products_facts", f"https://world.openproductsfacts.org/api/v2/product/{clean_code}.json"),
+    ]
+
+    for source_name, url in open_sources:
+        try:
+            resp = requests.get(
+                url,
+                headers={"User-Agent": "TradetrackV/1.0 (contact@tradetrackv.app)"},
+                timeout=4
+            )
+            if resp.status_code == 200:
+                payload = resp.json()
+                if payload.get("status") == 1:
+                    prod_data = payload.get("product", {})
+                    name = (
+                        prod_data.get("product_name")
+                        or prod_data.get("product_name_en")
+                        or prod_data.get("generic_name")
+                    )
+                    brand = (prod_data.get("brands") or "").split(",")[0].strip()
+                    if name:
+                        name = name.strip()
+                        full_name = f"{brand} {name}".strip() if brand and brand.lower() not in name.lower() else name
+                        clipped_name = full_name[:150]
+                        existing = db.session.get(GlobalCatalog, clean_code)
+                        if not existing:
+                            db.session.add(GlobalCatalog(barcode=clean_code, product_name=clipped_name))
+                            db.session.commit()
+                        return jsonify({
+                            "source": source_name,
+                            "found": True,
+                            "name": clipped_name,
+                            "barcode": clean_code
+                        })
+        except Exception:
+            pass
 
     return jsonify({"found": False, "barcode": clean_code})
-
 
 @app.route("/api/link-barcode", methods=["POST"])
 @login_required

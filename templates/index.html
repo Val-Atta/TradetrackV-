@@ -13,7 +13,7 @@
       --amber: #f5b82e;
       --bg: #f3f6f4;
       --card: #ffffff;
-      --text: #1c2822;
+      --text: #3b2f28;
       --muted: #64746b;
     }
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -34,9 +34,9 @@
       padding: 2px 7px; border-radius: 99px; margin-left: 6px; vertical-align: middle;
     }
     .plan-freemium { background: #e2ece7; color: var(--green-dark); }
-    .plan-premium { background: var(--amber); color: #1c2822; }
+    .plan-premium { background: var(--amber); color: #3b2f28; }
     .mode-btn {
-      background: var(--amber); color: #1c2822; border: none; border-radius: 20px;
+      background: var(--amber); color: #3b2f28; border: none; border-radius: 20px;
       padding: 7px 13px; font-weight: 700; font-size: 12px; cursor: pointer;
     }
     .mode-btn.owner { background: #ffffff; color: var(--green-dark); }
@@ -48,7 +48,7 @@
     .row-between { display: flex; justify-content: space-between; align-items: center; }
     h2, h3 { margin: 0 0 10px 0; font-size: 16px; }
     input, select {
-      width: 100%; padding: 12px; border: 1.5px solid #dce3df; border-radius: 10px;
+      width: 100%; padding: 12px; border: 1.5px solid #dfd5c5; border-radius: 10px;
       font-size: 15px; margin-bottom: 10px; background: #fff; font-family: inherit;
     }
     input:focus, select:focus { outline: none; border-color: var(--green); }
@@ -58,9 +58,9 @@
       display: inline-block; text-align: center;
     }
     .btn-primary { background: var(--green); color: #fff; }
-    .btn-dark { background: #1c2822; color: #fff; padding: 8px 12px; font-size: 13px; width: auto; }
+    .btn-dark { background: #3b2f28; color: #fff; padding: 8px 12px; font-size: 13px; width: auto; }
     .btn-amber { background: #fff4d6; color: #9a6700; border: 1px solid #f5b82e; }
-    .btn-gold { background: var(--amber); color: #1c2822; }
+    .btn-gold { background: var(--amber); color: #3b2f28; }
     .btn-sm { padding: 7px 12px; font-size: 13px; width: auto; border-radius: 8px; }
     .item-row {
       display: flex; justify-content: space-between; align-items: center;
@@ -76,7 +76,7 @@
     .stat-val { font-size: 20px; font-weight: 800; margin-top: 4px; color: var(--green); }
     .stat-val.amber { color: #d98200; }
     .premium-box {
-      background: #faf6eb; border: 1px dashed #e2b84b; border-radius: 12px;
+      background: #f8f1e7; border: 1px dashed #e2b84b; border-radius: 12px;
       padding: 14px; margin-bottom: 12px;
     }
     nav.bottom-nav {
@@ -96,14 +96,31 @@
     }
     .modal-box { background: #fff; width: 100%; max-width: 400px; border-radius: 16px; padding: 18px; }
     .tab-switch { display: flex; gap: 8px; margin-bottom: 14px; }
-    .tab-switch button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #dce3df; font-weight: 700; background: #f8faf9; }
+    .tab-switch button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #dfd5c5; font-weight: 700; background: #f6f0e6; }
     .tab-switch button.active { background: var(--green); color: #fff; border-color: var(--green); }
     .toast {
       position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
-      background: #1c2822; color: #fff; padding: 10px 16px; border-radius: 20px;
+      background: #3b2f28; color: #fff; padding: 10px 16px; border-radius: 20px;
       font-size: 13px; font-weight: 600; z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
   </style>
+<style>
+:root {
+  --bg: #f5efe6;
+  --card: #fffdf9;
+  --text: #2f2621;
+  --muted: #6b5e53;
+  --green: #4a5d23;
+  --green-dark: #344317;
+  --amber: #c45d3b;
+}
+body { background: var(--bg) !important; color: var(--text) !important; }
+.topbar, .btn-primary, .nav-item.active, .tab-switch button.active { background: var(--green) !important; }
+.nav-item.active { color: var(--green) !important; border-top-color: var(--green) !important; }
+.price-tag, .stat-val { color: var(--green) !important; }
+.plan-premium, .btn-gold, .mode-btn.salesgirl { background: var(--amber) !important; color: #fffdf9 !important; }
+.stat-val.amber { color: var(--amber) !important; }
+</style>
 </head>
 <body>
 
@@ -137,7 +154,7 @@
       <label style="font-size:12px; font-weight:700; display:block; margin-bottom:4px;">Select Plan</label>
       <select id="regPlan">
         <option value="freemium">Freemium (Device Storage Only — No Cloud DB)</option>
-        <option value="premium">Premium (₦4,000 Moniepoint — Cloud DB, Setup & WhatsApp)</option>
+        <option value="premium">Premium (₦2,500/month Moniepoint — Cloud DB, Setup & WhatsApp)</option>
       </select>
 
       <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:12px;">
@@ -208,12 +225,12 @@
 
     <div id="viewLogs" class="hidden">
       <div id="freemiumUpgradeCard" class="premium-box hidden">
-        <h3 style="margin:0 0 6px;">Upgrade to Premium — ₦4,000</h3>
+        <h3 style="margin:0 0 6px;">Upgrade to Premium — ₦2,500/month</h3>
         <p style="font-size:13px; color:var(--muted); margin:0 0 8px;">
           Freemium records stay on this device only and are <strong>not</strong> saved to the database.
         </p>
         <p style="font-size:13px; margin:0 0 10px;">
-          • <strong>Payment:</strong> ₦4,000 to Moniepoint <strong>09061693582</strong><br/>
+          • <strong>Payment:</strong> ₦2,500/month to Moniepoint <strong>09061693582</strong><br/>
           • <strong>Enquiries, Free Stock Setup & DB Reference:</strong> WhatsApp <strong>09061693582</strong> only
         </p>
         <a class="btn btn-gold" href="https://wa.me/2349061693582?text=Hello%20TradetrackV%2C%20I%20want%20Premium%20(Cloud%20DB%2C%20Free%20Stock%20Setup%20%26%20Reference)" target="_blank">
@@ -224,7 +241,7 @@
       <div id="premiumInfoCard" class="card hidden">
         <h2>Premium Active — Cloud DB & WhatsApp Support</h2>
         <p style="font-size:13px; color:var(--muted); margin:0 0 10px;">
-          Records are linked to the cloud database for future reference. For stock setup help, enquiries, or reference checks (₦4,000 Moniepoint plan):
+          Records are linked to the cloud database for future reference. For stock setup help, enquiries, or reference checks (₦2,500/month Moniepoint plan):
         </p>
         <a class="btn btn-primary" href="https://wa.me/2349061693582?text=Hello%20TradetrackV%20Premium%20Support" target="_blank">
           WhatsApp Support: 09061693582
@@ -244,7 +261,7 @@
           </div>
         </div>
 
-        <div id="ownerProfitBanner" class="stat-box hidden" style="background:#eaf7f0; margin-bottom:12px;">
+        <div id="ownerProfitBanner" class="stat-box hidden" style="background:#f4efe6; margin-bottom:12px;">
           <div class="stat-label">Net Profit</div>
           <div id="periodProfitVal" class="stat-val">₦0</div>
         </div>
@@ -252,7 +269,7 @@
         <div id="txLogList"></div>
       </div>
 
-      <button class="btn" style="background:#e5ebe8; color:#1c2822;" onclick="handleLogout()">Log Out of Shop</button>
+      <button class="btn" style="background:#ebe5d8; color:#3b2f28;" onclick="handleLogout()">Log Out of Shop</button>
     </div>
   </div>
 

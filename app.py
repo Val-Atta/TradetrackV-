@@ -50,6 +50,11 @@ class Product(db.Model):
     cost_price = db.Column(db.Float, default=0.0)
     selling_price = db.Column(db.Float, nullable=False)
     stock_qty = db.Column(db.Integer, default=0)
+    bulk_barcode = db.Column(db.String(64), nullable=True, index=True)
+    bulk_unit_name = db.Column(db.String(30), nullable=True)
+    bulk_factor = db.Column(db.Integer, default=1)
+    bulk_selling_price = db.Column(db.Float, nullable=True)
+    bulk_cost_price = db.Column(db.Float, nullable=True)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
@@ -379,6 +384,13 @@ def save_product():
     cost_price = float(data.get("cost_price") or 0)
     selling_price = float(data.get("selling_price") or 0)
     stock_qty = int(data.get("stock_qty") or 0)
+    bulk_barcode = (data.get("bulk_barcode") or "").strip() or None
+    bulk_unit_name = (data.get("bulk_unit_name") or "").strip() or None
+    bulk_factor = max(1, int(data.get("bulk_factor") or 1))
+    raw_bulk_sell = data.get("bulk_selling_price")
+    bulk_selling_price = float(raw_bulk_sell) if raw_bulk_sell not in (None, "") else None
+    raw_bulk_cost = data.get("bulk_cost_price")
+    bulk_cost_price = float(raw_bulk_cost) if raw_bulk_cost not in (None, "") else None
 
     if not name or selling_price <= 0:
         return jsonify({"error": "Product name and selling price are required."}), 400
@@ -392,6 +404,12 @@ def save_product():
         prod.cost_price = cost_price
         prod.selling_price = selling_price
         prod.stock_qty = stock_qty
+        prod.bulk_barcode = bulk_barcode
+        prod.bulk_unit_name = bulk_unit_name
+        prod.bulk_factor = bulk_factor
+        prod.bulk_selling_price = bulk_selling_price
+        prod.bulk_cost_price = bulk_cost_price
+
     else:
         prod = Product(
             shop_id=shop.id,
@@ -399,7 +417,13 @@ def save_product():
             name=name,
             cost_price=cost_price,
             selling_price=selling_price,
-            stock_qty=stock_qty
+            stock_qty=stock_qty,
+            bulk_barcode=bulk_barcode,
+            bulk_unit_name=bulk_unit_name,
+            bulk_factor=bulk_factor,
+            bulk_selling_price=bulk_selling_price,
+            bulk_cost_price=bulk_cost_price,
+
         )
         db.session.add(prod)
 
@@ -428,17 +452,37 @@ def record_transaction():
     tx_type = data.get("tx_type", "SALE")
     qty = int(data.get("qty") or 1)
     recorded_by = data.get("recorded_by", "Salesgirl")
+    unit_mode = (data.get("unit_mode") or "single").strip().lower()
 
     prod = Product.query.filter_by(id=product_id, shop_id=shop.id).first()
     if not prod:
         return jsonify({"error": "Product not found in shop inventory."}), 404
 
-    if prod.stock_qty < qty:
-        return jsonify({"error": f"Insufficient stock! Only {prod.stock_qty} left."}), 400
 
-    prod.stock_qty -= qty
-    total_amount = (prod.cost_price * qty) if tx_type == "FAMILY_DRAW" else (prod.selling_price * qty)
-    profit = 0.0 if tx_type == "FAMILY_DRAW" else ((prod.selling_price - prod.cost_price) * qty)
+    if unit_mode == "bulk":
+        factor = max(1, int(prod.bulk_factor or 1))
+        base_qty_needed = qty * factor
+        eff_selling_price = (
+            float(prod.bulk_selling_price)
+            if prod.bulk_selling_price is not None
+            else float(prod.selling_price) * factor
+        )
+        eff_cost_price = (
+            float(prod.bulk_cost_price)
+            if prod.bulk_cost_price is not None
+            else float(prod.cost_price) * factor
+        )
+    else:
+        base_qty_needed = qty
+        eff_selling_price = float(prod.selling_price)
+        eff_cost_price = float(prod.cost_price)
+
+    if prod.stock_qty < base_qty_needed:
+        return jsonify({"error": f"Insufficient stock! Only {prod.stock_qty} single unit(s) left."}), 400
+
+    prod.stock_qty -= base_qty_needed
+    total_amount = (eff_cost_price * qty) if tx_type == "FAMILY_DRAW" else (eff_selling_price * qty)
+    profit = 0.0 if tx_type == "FAMILY_DRAW" else ((eff_selling_price - eff_cost_price) * qty)
 
     db.session.add(Transaction(
         shop_id=shop.id,
@@ -446,14 +490,90 @@ def record_transaction():
         product_name=prod.name,
         tx_type=tx_type,
         qty=qty,
-        unit_price=prod.selling_price,
-        unit_cost=prod.cost_price,
+        unit_price=eff_selling_price,
+        unit_cost=eff_cost_price,
         total_amount=total_amount,
         profit=profit,
         recorded_by=recorded_by
     ))
     db.session.commit()
     return jsonify({"message": "Recorded in Cloud DB"})
+@app.route("/api/shop/<int:shop_id>/barcode-lookup", methods=["GET"])
+@login_required
+def shop_unit_barcode_lookup(shop_id):
+    if session.get("shop_id") != shop_id:
+        return jsonify({"error": "Forbidden: wrong shop."}), 403
+
+    code = (request.args.get("code") or "").strip()
+    if not code:
+        return jsonify({"error": "Barcode value is required."}), 400
+
+    shop = db.session.get(Shop, shop_id)
+    if not shop:
+        return jsonify({"error": "Shop not found."}), 404
+
+    prod = Product.query.filter_by(shop_id=shop_id, barcode=code).first()
+    matched_unit = "single"
+    factor = 1
+
+    if not prod:
+        prod = Product.query.filter_by(shop_id=shop_id, bulk_barcode=code).first()
+        if prod:
+            matched_unit = "bulk"
+            factor = int(prod.bulk_factor or 1)
+
+    if not prod:
+        return jsonify({"found": False, "error": "Barcode not found in this shop."}), 404
+
+    base_stock = int(prod.stock_qty or 0)
+    factor = max(1, int(factor or 1))
+    available_in_unit = (base_stock // factor) if base_stock > 0 else 0
+
+    if matched_unit == "bulk":
+        unit_price = (
+            float(prod.bulk_selling_price)
+            if prod.bulk_selling_price is not None
+            else float(prod.selling_price) * factor
+        )
+        unit_cost = (
+            float(prod.bulk_cost_price)
+            if prod.bulk_cost_price is not None
+            else float(prod.cost_price) * factor
+        )
+        unit_label = prod.bulk_unit_name or "bulk"
+    else:
+        unit_price = float(prod.selling_price)
+        unit_cost = float(prod.cost_price)
+        unit_label = "single"
+
+    human_stock = f"{base_stock} unit(s)"
+    if prod.bulk_unit_name and (prod.bulk_factor or 1) > 1:
+        b_factor = int(prod.bulk_factor)
+        full_bulks, loose_units = divmod(base_stock, b_factor)
+        parts = []
+        if full_bulks > 0:
+            parts.append(f"{full_bulks} {prod.bulk_unit_name}(s)")
+        if loose_units > 0 or not parts:
+            parts.append(f"{loose_units} single(s)")
+        human_stock = ", ".join(parts)
+
+    return jsonify({
+        "found": True,
+        "matched_unit": matched_unit,
+        "unit_label": unit_label,
+        "factor_to_base": factor,
+        "available_in_unit": available_in_unit,
+        "human_stock": human_stock,
+        "product": {
+            "id": prod.id,
+            "name": prod.name,
+            "barcode": prod.barcode,
+            "bulk_barcode": prod.bulk_barcode,
+            "selling_price": unit_price,
+            "cost_price": unit_cost,
+            "stock_qty": base_stock,
+        },
+    }), 200
 
 
 if __name__ == "__main__":

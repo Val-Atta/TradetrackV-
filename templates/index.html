@@ -284,7 +284,12 @@ body { background: var(--bg) !important; color: var(--text) !important; }
   <div class="modal-box">
     <h3 id="txModalTitle">Record Item</h3>
     <p id="txModalSub" style="font-size:13px; color:var(--muted); margin-top:0;"></p>
-    <label style="font-size:12px; font-weight:700;">Quantity</label>
+    <label style="font-size:12px; font-weight:700;">Sell / Record As</label>
+      <select id="txUnitMode" style="width:100%; padding:8px; margin-bottom:8px;">
+        <option value="single">Single Unit</option>
+        <option value="bulk">Bulk / Pack</option>
+      </select>
+      <label style="font-size:12px; font-weight:700;">Quantity</label>
     <input type="number" id="txQty" value="1" min="1" />
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px;">
       <button class="btn btn-primary" onclick="submitTransaction('SALE')">Customer Sale</button>
@@ -311,6 +316,16 @@ body { background: var(--bg) !important; color: var(--text) !important; }
       <input type="number" id="prodSell" placeholder="Selling Price (₦)" />
     </div>
     <input type="number" id="prodQty" placeholder="Stock Quantity" />
+      <div style="margin-top:8px; font-size:12px; font-weight:700; color:var(--muted);">Bulk / Pack Options (Optional)</div>
+      <input type="text" id="bulkBarcode" placeholder="Bulk Barcode (e.g. carton code)" />
+      <div class="stats-grid" style="margin-top:6px;">
+        <input type="text" id="bulkUnitName" placeholder="Bulk Unit (e.g. Carton, Pack)" />
+        <input type="number" id="bulkFactor" placeholder="Units per Bulk (e.g. 24)" min="1" />
+      </div>
+      <div class="stats-grid" style="margin-top:6px;">
+        <input type="number" id="bulkCost" placeholder="Bulk Cost Price (₦)" />
+        <input type="number" id="bulkSell" placeholder="Bulk Selling Price (₦)" />
+      </div>
     <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
     <button class="btn" style="background:transparent; color:var(--muted); margin-top:6px;" onclick="closeModals()">Cancel</button>
   </div>
@@ -621,6 +636,7 @@ body { background: var(--bg) !important; color: var(--text) !important; }
         qty,
         total_amount: totalAmount,
         profit,
+        unit_mode: document.getElementById("txUnitMode")?.value || "single",
         recorded_by: isOwnerMode ? "Owner" : "Salesgirl",
         created_at: new Date().toISOString().replace("T", " ").slice(0, 16)
       });
@@ -658,6 +674,15 @@ body { background: var(--bg) !important; color: var(--text) !important; }
     document.getElementById("prodCost").value = prod ? prod.cost_price : "";
     document.getElementById("prodSell").value = prod ? prod.selling_price : "";
     document.getElementById("prodQty").value = prod ? prod.stock_qty : "";
+    const bulk_barcode = (document.getElementById("bulkBarcode")?.value || "").trim() || null;
+    const bulk_unit_name = (document.getElementById("bulkUnitName")?.value || "").trim() || null;
+    const bulk_factor_raw = document.getElementById("bulkFactor")?.value;
+    const bulk_factor = bulk_factor_raw ? Math.max(1, parseInt(bulk_factor_raw, 10) || 1) : 1;
+    const bulk_cost_raw = document.getElementById("bulkCost")?.value;
+    const bulk_cost_price = bulk_cost_raw !== "" && bulk_cost_raw != null ? Number(bulk_cost_raw) : null;
+    const bulk_sell_raw = document.getElementById("bulkSell")?.value;
+    const bulk_selling_price = bulk_sell_raw !== "" && bulk_sell_raw != null ? Number(bulk_sell_raw) : null;
+    const bulkFields = { bulk_barcode, bulk_unit_name, bulk_factor, bulk_cost_price, bulk_selling_price };
     document.getElementById("prodModal").classList.remove("hidden");
   }
 
@@ -703,10 +728,10 @@ body { background: var(--bg) !important; color: var(--text) !important; }
       if (idVal) {
         const idx = appState.products.findIndex(p => String(p.id) === String(idVal));
         if (idx > -1) {
-          appState.products[idx] = { ...appState.products[idx], barcode, name, cost_price, selling_price, stock_qty };
+          appState.products[idx] = { ...appState.products[idx], barcode, name, cost_price, selling_price, stock_qty, ...bulkFields };
         }
       } else {
-        appState.products.push({ id: Date.now(), barcode, name, cost_price, selling_price, stock_qty });
+        appState.products.push({ id: Date.now(), barcode, name, cost_price, selling_price, stock_qty, ...bulkFields });
       }
       saveLocalFreemiumData(appState.shop.id, {
         products: appState.products,
@@ -721,7 +746,7 @@ body { background: var(--bg) !important; color: var(--text) !important; }
     const res = await fetch("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: idVal || null, barcode, name, cost_price, selling_price, stock_qty })
+      body: JSON.stringify({ id: idVal || null, barcode, name, cost_price, selling_price, stock_qty, ...bulkFields })
     });
     const data = await res.json();
     if (!res.ok) return showToast(data.error);
